@@ -1,31 +1,53 @@
-import { useState } from "react"
-import Header from "./components/layouts/Header"
-import Home from "./components/layouts/pages/Home";
-
+import { useState } from "react";
+import Header from "./components/Layout/Header";
+import Home from "./components/Pages/Home";
+import Forecast from "./components/Pages/Forecast";
+import { getLocationCoords, getWeather } from "./api";
+import Favorites from "./components/Pages/Favorites";
 
 function App() {
-  const[location,setlocation] = useState("");
-  const[data,setData] = useState({});
-  async function getWeatherData(){
-    try{
-      const response = await fetch(`https://api.weatherapi.com/v1/forecast.json?key=88a9fc86342d4d63a98185704230712&q=${location}&days=7&aqi=yes&alerts=yes`)
+  const [city, setCity] = useState("");
+  const [data, setData] = useState(null);
+  const [forecastData, setForecastData] = useState([]);
+  const [favorites, setFavorites] = useState([]);
 
-      if(response.status === 200){
-        const data =await response.json();
-        setData(data);
-      }
-    } catch (error){
-      console.log(error,"error from Api call")
-    } finally{
-      console.log("success");
+  const [error, setError] = useState("");
+
+  const fetchWeather = async () => {
+    try {
+      setError("");
+
+      const { latitude, longitude } = await getLocationCoords(city);
+      const weatherData = await getWeather(latitude, longitude);
+
+      setData({
+        temp: weatherData.temperature,
+        wind: weatherData.windspeed,
+        code: weatherData.weathercode,
+      });
+
+      setForecastData(weatherData.daily);
+      setFavorites((prev) => {
+        if(!prev.includes(city.trim()))
+          return[...prev, city.trim()];
+        return prev;
+      });
+    } catch {
+      setError("City not found");
+      setData(null);
+      setForecastData([]);
     }
-  }
+  };
+
   return (
     <>
-       <Header setlocation={setlocation} getWeatherData={getWeatherData} />
-       <Home data={data} />
-    
-     </>
-  )
+      <Header setcity={setCity} fetchWeather={fetchWeather} weather={data} />
+      <Home data={data} error={error} />
+      <Forecast forecastData={forecastData} />
+      <Favorites favorites = {favorites}
+      setFavorites={setFavorites} />
+    </>
+  );
 }
-export default App
+
+export default App;
